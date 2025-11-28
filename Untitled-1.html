@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Protected Page</title>
+    <style>
+      body {font-family: Arial, Helvetica, sans-serif; margin:30px}
+      .hidden {display:none}
+      .center {max-width:500px;margin:0 auto}
+      /* Login box background using favicon.svg */
+      #loginBox {
+        position: relative;
+        overflow: hidden;
+        background-image: url('favicon.svg');
+        background-repeat: no-repeat;
+        background-position: center -20px; /* position the icon near the top center */
+        background-size: 120px 120px;
+        padding-top: 80px; /* make room for icon */
+        padding-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        background-color: rgba(255,255,255,0.9);
+      }
+      /* Overlay effect for better contrast when icon is visible */
+      #loginBox::before {
+        content: '';
+        position: absolute;
+        left: 0; right: 0; top: 0; bottom: 0;
+        border-radius: 8px;
+        pointer-events: none;
+        mix-blend-mode: multiply;
+      }
+      label{display:block;margin-top:10px}
+      input[type=text], input[type=password] {width:100%;padding:8px;margin-top:6px}
+      button{margin-top:10px;padding:8px 12px}
+      .top-right{position:fixed;right:10px;top:10px}
+      .message{margin-top:10px;color:red}
+      header address { font-style: normal; color: #333; }
+      .profile { margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Small client-side login guard for local/prototyping use.
+      NOTE: This is NOT secure for production. Client-side protection can be bypassed.
+            For secure authentication, use server-side authentication and HTTPS.
+    -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <meta name="theme-color" content="#d32f2f">
+    <div class="bg-text">Subhan</div>
+    <div class="center">
+      <div id="loginBox">
+        <h2>Login</h2>
+        <div id="loginForm">
+          <label for="loginUser">Username</label>
+          <input id="loginUser" type="text" autocomplete="username" />
+          <label for="loginPass">Password</label>
+          <input id="loginPass" type="password" autocomplete="current-password" />
+          <label><input id="rememberMe" type="checkbox" /> Remember me</label>
+          <button id="btnLogin">Login</button>
+          <div class="message" id="loginMsg"></div>
+          <small>Tip: Use ArrowUp / ArrowDown to navigate fields. Press Enter to submit.</small>
+        </div>
+        <!-- Create Account removed: only login is supported -->
+        <div class="contact">
+          <p>Contact: <a href="tel:+923054181877">0305 4181877</a></p>
+        </div>
+      </div>
+      <style>
+        .contact p { margin-top: 10px; color: #333; }
+        .contact a { color: #0066cc; text-decoration: none; }
+        .contact a:hover { text-decoration: underline; }
+      </style>
+
+      <div id="content" class="hidden">
+        <div class="top-right">
+          <button id="btnInstall" class="hidden">Install App</button>
+          <button id="btnLogout">Logout</button>
+        </div>
+        <header>
+          <address>
+            <strong>Primary address:</strong> Muslim Town, Vehari<br />
+            <a href="tel:+923222132198">0322 2132198</a>
+          </address>
+          <h1>Subhan Asghar</h1>
+        </header>
+        <main>
+          <section class="profile">
+            <p><strong>Name:</strong> Subhan Asghar</p>
+            <p><strong>partner:</strong> Ahmad Fraz</p>
+          </section>
+        </main>
+      </div>
+
+      <hr />
+    </div>
+
+    <style>
+      /* Watermark background text */
+      :root{ --watermark-color: rgba(255,0,0,0.06); }
+      .bg-text {
+        position: fixed;
+        inset: 0; /* top:0; right:0; bottom:0; left:0 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none; /* allow clicks through */
+        user-select: none;
+        font-weight: 700;
+        font-size: 14vw; /* responsive based on viewport width */
+        color: var(--watermark-color); /* use CSS variable (default: red, faint) */
+        transform: rotate(-15deg);
+        z-index: 0;
+        white-space: nowrap;
+      }
+      /* Ensure the main UI floats above watermark */
+      .center { position: relative; z-index: 1; }
+    </style>
+
+    <script>
+      // PWA install prompt handling
+      let deferredPrompt;
+      const installBtn = document.getElementById('btnInstall');
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        // Show the install button when login box visible (or always) — here we show it in top-right
+        installBtn.classList.remove('hidden');
+      });
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('PWA installation accepted');
+        }
+        deferredPrompt = null;
+        installBtn.classList.add('hidden');
+      });
+
+      // Register service worker (for offline & install eligibility). Note: needs HTTPS or localhost
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').then(reg => {
+            console.log('Service worker registered.', reg);
+          }).catch(err => console.warn('Service worker registration failed:', err));
+        });
+      }
+      // Keys used in localStorage
+      const STORAGE_USER_KEY = 'demo_username';
+      const STORAGE_PASS_KEY = 'demo_password';
+
+      // Shortcut elements
+      const loginBox = document.getElementById('loginBox');
+      const loginForm = document.getElementById('loginForm');
+      const content = document.getElementById('content');
+      const loginMsg = document.getElementById('loginMsg');
+
+      function getStoredCreds() {
+        return {
+          username: localStorage.getItem(STORAGE_USER_KEY) || '',
+          password: localStorage.getItem(STORAGE_PASS_KEY) || ''
+        };
+      }
+
+      function setStoredCreds(username, password) {
+        // Using btoa to obfuscate slightly - not secure
+        localStorage.setItem(STORAGE_USER_KEY, username);
+        localStorage.setItem(STORAGE_PASS_KEY, btoa(password));
+      }
+
+      function checkPasswordMatch(plain, storedB64) {
+        try {
+          return btoa(plain) === storedB64;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      // Show content if logged in currently
+      function showContent(isLoggedIn = false, remember=false) {
+        if (isLoggedIn) {
+          loginBox.classList.add('hidden');
+          content.classList.remove('hidden');
+          if (remember) {
+            localStorage.setItem('demo_logged_in', 'true');
+          } else {
+            sessionStorage.setItem('demo_logged_in', 'true');
+            localStorage.removeItem('demo_logged_in');
+          }
+        } else {
+          loginBox.classList.remove('hidden');
+          content.classList.add('hidden');
+          sessionStorage.removeItem('demo_logged_in');
+        }
+      }
+
+      // Initialize UI: if account does not exist, open create form
+      function init() {
+        const credentials = getStoredCreds();
+        const loggedInLS = localStorage.getItem('demo_logged_in') === 'true';
+        const loggedInSS = sessionStorage.getItem('demo_logged_in') === 'true';
+        if (loggedInLS || loggedInSS) {
+          showContent(true, loggedInLS);
+          return;
+        }
+        if (!credentials.username || !credentials.password) {
+          // No account stored; create default account as requested
+          // Default: username 'admin', password '32198'
+          setStoredCreds('admin', '32198');
+          // Prefill login username so user can login immediately
+          document.getElementById('loginUser').value = 'admin';
+          loginForm.classList.remove('hidden');
+          loginMsg.style.color = 'green';
+          loginMsg.textContent = 'Default account created: admin / 32198';
+          setTimeout(() => { loginMsg.textContent = ''; loginMsg.style.color = 'red'; }, 3000);
+        } else {
+          // Prefill username in login form
+          document.getElementById('loginUser').value = credentials.username;
+        }
+      }
+
+      // Controls
+      // Create account functionality removed — only login supported
+
+      // Login
+      document.getElementById('btnLogin').addEventListener('click', () => {
+        loginMsg.textContent = '';
+        const username = document.getElementById('loginUser').value.trim();
+        const pass = document.getElementById('loginPass').value;
+        const remember = document.getElementById('rememberMe').checked;
+        const creds = getStoredCreds();
+        if (!creds.username || !creds.password) {
+          loginMsg.textContent = 'No account exists. Create one first.';
+          return;
+        }
+        if (username !== creds.username) { loginMsg.textContent = 'Invalid username or password.'; return; }
+        if (!checkPasswordMatch(pass, creds.password)) { loginMsg.textContent = 'Invalid username or password.'; return; }
+        showContent(true, remember);
+      });
+
+      // Logout
+      document.getElementById('btnLogout').addEventListener('click', () => {
+        sessionStorage.removeItem('demo_logged_in');
+        localStorage.removeItem('demo_logged_in');
+        showContent(false);
+      });
+
+      // If user presses Enter while on form, trigger login or create accordingly
+      // Also support ArrowUp/ArrowDown to move focus between inputs
+      document.addEventListener('keydown', (e) => {
+        // Enter behavior: trigger the appropriate action
+        if (e.key === 'Enter') {
+          if (!loginForm.classList.contains('hidden')) {
+            document.getElementById('btnLogin').click();
+          }
+          return; // stop further processing for Enter
+        }
+
+        // Arrow navigation behavior
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          const active = document.activeElement;
+          // Helper to move focus within a given container
+          function moveFocus(container) {
+            const focusable = Array.from(container.querySelectorAll('input, button')).filter(el => !el.disabled && el.offsetParent !== null);
+            const index = focusable.indexOf(active);
+            if (index === -1) return false;
+            let nextIndex = (e.key === 'ArrowDown') ? index + 1 : index - 1;
+            // clamp
+            if (nextIndex < 0) nextIndex = 0;
+            if (nextIndex >= focusable.length) nextIndex = focusable.length - 1;
+            focusable[nextIndex].focus();
+            return true;
+          }
+
+          // Try moving focus within the visible form (only login form is present)
+          if (!loginForm.classList.contains('hidden') && moveFocus(loginForm)) { e.preventDefault(); return; }
+        }
+      });
+
+      init();
+    </script>
+  </body>
+</html>
